@@ -11,7 +11,7 @@ The encrypted MiniDump and its key are dropped to the current directory.
 
 **catxor** then decrypts the MiniDump. Then you can open it in Mimikatz like normal.
 
-Run with NT AUTHORITY\SYSTEM privileges. You can figure out that part :)
+Compile each as their own VS2022 project, then run with `NT AUTHORITY\SYSTEM` privileges. You can figure out that part :)
 
 ## Features
 
