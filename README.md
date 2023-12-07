@@ -14,6 +14,7 @@ Run with NT AUTHORITY\SYSTEM privileges. You can figure out that part :)
 - Uses polymorphism with compiletime RNG to always generate a unique file signature.
 - XOR encrypting the MiniDump in-memory means AV/EDRs *shouldn't* flag it once it hits the disk.
 - File deletes itself after running to try and prevent remnants from remaining on disk.
+- Strings that might raise flags are obfuscated (e.g "lsass.exe").
 
 ## Demo
 
