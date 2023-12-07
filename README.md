@@ -5,7 +5,10 @@ Windows LSASS Credential Dumper
 
 ## Overview
 
-**catdumper** creates a MiniDump of the LSASS process and XOR encrypts it in-memory with a randomly-generated string. The encrypted MiniDump and its key are dropped to the current directory. **catxor** then decrypts the MiniDump. Then you can open it in Mimikatz like normal.
+**catdumper** takes a snapshot of the LSASS process, then creates a MiniDump of it and XOR encrypts it in-memory with a randomly-generated string.
+The encrypted MiniDump and its key are dropped to the current directory.
+
+**catxor** then decrypts the MiniDump. Then you can open it in Mimikatz like normal.
 
 Run with NT AUTHORITY\SYSTEM privileges. You can figure out that part :)
 
