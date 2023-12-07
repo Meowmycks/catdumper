@@ -1,7 +1,7 @@
 # catdumper
 Windows LSASS Credential Dumper
 
-*Developed for educational and ethical testing purposes only. I'm not responsible for your dumbass if the Feds knock on your door.*
+*Insert "eDuCaTiOnAl PuRpOsEs OnLy" disclaimer here. I created this to learn. I'm not responsible for your dumbass if the Feds knock on your door.*
 
 ## Overview
 
