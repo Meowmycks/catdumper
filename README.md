@@ -1,5 +1,6 @@
 # catdumper
-Windows LSASS Credential Dumper
+
+## Disclaimer
 
 *Insert "eDuCaTiOnAl PuRpOsEs OnLy" disclaimer here. I created this to learn. I'm not responsible for your dumbass if the Feds knock on your door.*
 
