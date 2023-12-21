@@ -28,8 +28,8 @@ std::string ASCIItoString(const std::vector<int>& asciiValues);
 
 constexpr unsigned int numRNG();
 std::string Keygen(int length);
-std::string EncryptDump(LPVOID dumpBuffer, DWORD dumpBufferSize, const std::string& key);
 void RC4(std::vector<char>& data, const std::string& key);
+std::string EncryptDump(LPVOID dumpBuffer, DWORD dumpBufferSize, const std::string& key);
 std::string Base64Encode(const std::string& input);
 
 std::vector<std::string> SplitDataIntoChunks(const std::string& data, size_t chunkSize);
