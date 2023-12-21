@@ -6,8 +6,8 @@ Don't be evil with this. I created this tool to learn. I'm not responsible if th
 
 ## Overview
 
-**catdumper** takes a snapshot of the LSASS process, creates a MiniDump of it, RC4 encrypts it with a randomly-generated string, and Base64 encodes it, all in-memory.
-While still in-memory, the encrypted MiniDump and its key are exfiltrated over an HTTPS connection to a Python Flask server you run on your machine.
+`catdumper.exe` takes a snapshot of the LSASS process, creates a MiniDump of it, RC4 encrypts it with a randomly-generated string, and Base64 encodes it, all in-memory.
+While still in-memory, the encrypted MiniDump and its key are exfiltrated over an HTTPS connection to a Python Flask server, `exfil.py` you run on your machine.
 The Flask server decodes and decrypts the data locally before dropping it to the disk. After that, you can open it in Mimikatz like normal.
 
 Compile as a VS2022 project, then run with `NT AUTHORITY\SYSTEM` privileges. You can figure out that part :)
