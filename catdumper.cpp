@@ -3,10 +3,9 @@
 // ired.team - Dumping Lsass without Mimikatz with MiniDumpWriteDump 
 // https://www.ired.team/offensive-security/credential-access-and-credential-dumping/dumping-lsass-passwords-without-mimikatz-minidumpwritedump-av-signature-bypass
 // 
-// ired.team - Bypassing Cylance and other AVs/EDRs by Unhooking Windows APIs
-// https://www.ired.team/offensive-security/defense-evasion/bypassing-cylance-and-other-avs-edrs-by-unhooking-windows-apis
+// ired.team - Full DLL Unhooking with C++
+// https://www.ired.team/offensive-security/defense-evasion/how-to-unhook-a-dll-using-c++
 //
-
 
 #define NOMINMAX
 #include <windows.h>
