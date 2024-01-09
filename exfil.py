@@ -69,3 +69,4 @@ def process_data(rc4_key):
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=443)
+    # if using Ngrok, use a non-HTTPS port (e.g 8443).
