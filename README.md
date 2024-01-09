@@ -17,7 +17,7 @@ Compile as a VS2022 project and ~~run with `NT AUTHORITY\SYSTEM` privileges~~ ru
 ## Features
 
 - Uses polymorphism with compiletime RNG to always generate a unique file signature.
-- Unhooks NTDLL to defeat EDR userland hooking.
+- Unhooks NtReadVirtualMemory to defeat EDR userland hooking.
 - Also tricks heuristics by performing multiple benign Windows API functions.
 - Encrypting and encoding MiniDump in-memory means AV/EDRs *shouldn't* flag it.
 - File deletes itself after running to try and prevent remnants from remaining on disk.
