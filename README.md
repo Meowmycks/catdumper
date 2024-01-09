@@ -23,3 +23,8 @@ Compile as a VS2022 project and run with `NT AUTHORITY\SYSTEM` privileges. You c
 - File deletes itself after running to try and prevent remnants from remaining on disk.
 - Strings that might raise flags are obfuscated (e.g "lsass.exe").
 - Packet size and time between requests is randomized.
+
+## Demo
+
+![catdumper_demo](https://github.com/Meowmycks/catdumper/assets/45502375/2f6b5c33-de3b-4243-afdb-4ea84b017efb)
+
