@@ -1,6 +1,8 @@
 #ifndef CATDUMPER_H
 #define CATDUMPER_H
 
+#define NOMINMAX
+
 #include <windows.h>
 #include <wincrypt.h>
 #include <winhttp.h>
@@ -14,6 +16,11 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+
+#pragma comment (lib, "ntdll")
+#pragma comment (lib, "crypt32")
+#pragma comment (lib, "winhttp")
+#pragma comment (lib, "dbghelp")
 
 // Syscall prototypes
 typedef BOOL(WINAPI* fLookupPrivilegeValueW)(
@@ -43,10 +50,16 @@ typedef NTSTATUS(NTAPI* fNtWriteVirtualMemory)(
     OUT PULONG NumberOfBytesWritten OPTIONAL
     );
 
-// Variable prototypes for in-memory processes
+// Variable prototypes for functions
 extern const size_t dumpBufferSize;
 extern LPVOID dumpBuffer;
 extern DWORD bytesRead;
+
+enum supported_versions {
+    win8 = 0x060200,
+    win81 = 0x060300,
+    win10 = 0x0A0000,
+};
 
 // Callback prototype for in-memory processes
 BOOL CALLBACK minidumpCallback(
