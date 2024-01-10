@@ -26,7 +26,7 @@ BOOL CALLBACK minidumpCallback(
 
 	switch (callbackInput->CallbackType)
 	{
-	case 16:
+	case 16: //IsProcessSnapshot
 		callbackOutput->Status = S_FALSE;
 		break;
 
